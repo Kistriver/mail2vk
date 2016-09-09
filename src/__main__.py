@@ -137,7 +137,7 @@ Subject: %(subject)s
 Date: %(date)s
 Msg:
 %(msg)s''' % msg,
-                user_ids=vk_reciever,
+                chat_id=vk_reciever,
             )
 
 
