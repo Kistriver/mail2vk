@@ -2,7 +2,7 @@ version: '2'
 
 
 services:
-  mail2vk:
+  service:
     build: .
-    restart: always
-    environment: []
+#    restart: always
+    env_file: ./prod.env
