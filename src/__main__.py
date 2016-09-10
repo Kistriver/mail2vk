@@ -62,15 +62,17 @@ class Mail(object):
         logger.info('(%s) new messages' %
                     unseen[0].decode('utf-8')[len('INBOX (UNSEEN '):-1])
 
-        typ, data = self._con.search(None, *fltrs)
+        typ, data = self._con.uid('SEARCH', None, *fltrs)
         if typ != 'OK':
             raise
         for i in data[0].split():
-            typ, message_parts = self._con.fetch(i, '(RFC822)')
+            typ, message_parts = self._con.uid('FETCH', i, '(RFC822)')
             if typ != 'OK':
                 raise
             mail = email.message_from_bytes(message_parts[0][1])
+            self.unseen(i)
 
+            ats = []
             z = zipstream.ZipFile()
             for part in mail.walk():
                 if part.get_content_maintype() == 'multipart':
@@ -80,6 +82,7 @@ class Mail(object):
                 file_name = part.get_filename()
 
                 if bool(file_name):
+                    ats.append(file_name)
                     z.writestr(file_name, part.get_payload(decode=True))
 
             msg_parts = [
@@ -91,15 +94,31 @@ class Mail(object):
             for name, data in msg_parts:
                 msg.append(data.decode('utf-8'))
             data = {
+                'id': i,
                 'msg': ''.join(msg),
                 'date': self._decode_header(mail, 'Date'),
                 'from': self._decode_header(mail, 'From'),
                 'email': self._decode_header(mail, 'Envelope-From'),
                 'subject': self._decode_header(mail, 'Subject'),
                 'attachments': z,
+                'attachments_list': ats,
             }
             logger.info('%(subject)s [%(from)s <%(email)s>] %(date)s' % data)
             yield data
+
+    def _flag(self, mid, flag, yes=None):
+        yes = True if yes is None else bool(yes)
+        typ, data = self._con.uid(
+            'STORE', mid, '%sFLAGS' % ('+' if yes else '-'), flag)
+        if typ != 'OK':
+            raise Exception(typ)
+        return data
+
+    def seen(self, mid):
+        return self._flag(mid, '\\SEEN', True)
+
+    def unseen(self, mid):
+        return self._flag(mid, '\\SEEN', False)
 
 
 class Vk(object):
@@ -133,14 +152,23 @@ class Vk(object):
         return self._api
 
     def upload_file(self, file_name, file_content):
-        cs = self.api.docs.getUploadServer()['upload_url']
+        try:
+            cs = self.api.docs.getUploadServer()['upload_url']
+        except KeyError as e:
+            logger.exception(e)
+            raise e
         res = requests.post(
             cs,
             files={
                 'file': (file_name, file_content),
             }
         )
-        file_cred = res.json()['file']
+        res_json = res.json()
+        try:
+            file_cred = res_json['file']
+        except KeyError as e:
+            logger.exception(res_json)
+            raise e
         ats = self.api.docs.save(file=file_cred, title=file_name)[0]
         return ats
 
@@ -157,20 +185,31 @@ def main():
     mail = Mail(e_login, e_password)
     vk = Vk(vk_app_id, vk_login, vk_password)
     with mail as m, vk as vk:
-        for msg in m.messages():
-            ats = vk.upload_file(
-                'attachments.zip',
-                b''.join(list(msg['attachments'])),
-            )
-            vk.api.messages.send(
-                message='''From: %(from)s <%(email)s>
+        try:
+            for msg in m.messages():
+                msg.update({
+                    'ats': ', '.join(msg['attachments_list']),
+                    'ats_count': len(msg['attachments_list']),
+                })
+
+                ats = vk.upload_file(
+                    'attachments.zip',
+                    b''.join(list(msg['attachments'])),
+                ) if msg['ats_count'] else None
+                res = vk.api.messages.send(
+                    message='''From: %(from)s <%(email)s>
 Subject: %(subject)s
 Date: %(date)s
-Msg:
+Attachments (%(ats_count)i): %(ats)s
+==============
 %(msg)s''' % msg,
-                chat_id=vk_reciever,
-                attachment='doc%(owner_id)i_%(did)i' % ats,
-            )
+                    chat_id=vk_reciever,
+                    attachment='doc%(owner_id)i_%(did)i' % ats
+                    if msg['ats_count'] else None,
+                )
+                mail.seen(msg['id'])
+        except Exception as e:
+            logger.exception(e)
 
 
 if __name__ == '__main__':
