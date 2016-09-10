@@ -4,6 +4,8 @@ import os
 import email
 import logging
 import sys
+import zipstream
+import requests
 
 __author__ = 'Alexey Kachalov <kachalov@kistriver.com>'
 
@@ -69,6 +71,17 @@ class Mail(object):
                 raise
             mail = email.message_from_bytes(message_parts[0][1])
 
+            z = zipstream.ZipFile()
+            for part in mail.walk():
+                if part.get_content_maintype() == 'multipart':
+                    continue
+                if part.get('Content-Disposition') is None:
+                    continue
+                file_name = part.get_filename()
+
+                if bool(file_name):
+                    z.writestr(file_name, part.get_payload(decode=True))
+
             msg_parts = [
                 (part.get_filename(), part.get_payload(decode=True))
                 for part in mail.walk()
@@ -81,9 +94,11 @@ class Mail(object):
                 'msg': ''.join(msg),
                 'date': self._decode_header(mail, 'Date'),
                 'from': self._decode_header(mail, 'From'),
+                'email': self._decode_header(mail, 'Envelope-From'),
                 'subject': self._decode_header(mail, 'Subject'),
+                'attachments': z,
             }
-            logger.info('%(subject)s <%(from)s> %(date)s' % data)
+            logger.info('%(subject)s [%(from)s <%(email)s>] %(date)s' % data)
             yield data
 
 
@@ -104,7 +119,7 @@ class Vk(object):
             app_id=self._app_id,
             user_login=self._login,
             user_password=self._pwd,
-            scope='offline,messages',
+            scope='offline,messages,docs',
         )
         self._api = vk.API(self._session)
         return self
@@ -116,6 +131,18 @@ class Vk(object):
     @property
     def api(self):
         return self._api
+
+    def upload_file(self, file_name, file_content):
+        cs = self.api.docs.getUploadServer()['upload_url']
+        res = requests.post(
+            cs,
+            files={
+                'file': (file_name, file_content),
+            }
+        )
+        file_cred = res.json()['file']
+        ats = self.api.docs.save(file=file_cred, title=file_name)[0]
+        return ats
 
 
 def main():
@@ -131,13 +158,18 @@ def main():
     vk = Vk(vk_app_id, vk_login, vk_password)
     with mail as m, vk as vk:
         for msg in m.messages():
+            ats = vk.upload_file(
+                'attachments.zip',
+                b''.join(list(msg['attachments'])),
+            )
             vk.api.messages.send(
-                message='''From: %(from)s
+                message='''From: %(from)s <%(email)s>
 Subject: %(subject)s
 Date: %(date)s
 Msg:
 %(msg)s''' % msg,
                 chat_id=vk_reciever,
+                attachment='doc%(owner_id)i_%(did)i' % ats,
             )
 
 
