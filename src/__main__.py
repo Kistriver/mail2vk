@@ -6,6 +6,7 @@ import logging
 import sys
 import zipstream
 import requests
+import time
 
 __author__ = 'Alexey Kachalov <kachalov@kistriver.com>'
 
@@ -72,36 +73,41 @@ class Mail(object):
             mail = email.message_from_bytes(message_parts[0][1])
             self.unseen(i)
 
-            ats = []
-            z = zipstream.ZipFile()
-            for part in mail.walk():
-                if part.get_content_maintype() == 'multipart':
-                    continue
-                if part.get('Content-Disposition') is None:
-                    continue
-                file_name = part.get_filename()
-
-                if bool(file_name):
-                    ats.append(file_name)
-                    z.writestr(file_name, part.get_payload(decode=True))
-
-            msg_parts = [
-                (part.get_filename(), part.get_payload(decode=True))
-                for part in mail.walk()
-                if part.get_content_type() in ['text/plain', 'text/html']
-            ]
             msg = []
-            for name, data in msg_parts:
-                msg.append(data.decode('utf-8'))
+            msg_html = []
+            ats = {}
+            ats_types = {}
+            if mail.is_multipart():
+                for part in mail.walk():
+                    ctype = part.get_content_type()
+                    if ctype == 'text/plain':
+                        msg.append(part.get_payload(decode=True))
+                    elif ctype == 'text/html':
+                        msg_html.append(part.get_payload(decode=True))
+                    elif part.get_filename() is not None:
+                        ats_types[part.get_filename()] = ctype
+                        ats.setdefault(part.get_filename(), [])
+                        ats[part.get_filename()].append(part.get_payload(
+                            decode=True))
+
+            msg, msg_html = map(
+                lambda x: b''.join(x).decode('utf-8'),
+                [msg, msg_html]
+            )
+
+            for file_name, data in ats.items():
+                ats[file_name] = b''.join(data)
+
             data = {
                 'id': i,
-                'msg': ''.join(msg),
+                'msg': msg,
+                'msg_html': msg_html,
                 'date': self._decode_header(mail, 'Date'),
                 'from': self._decode_header(mail, 'From'),
                 'email': self._decode_header(mail, 'Envelope-From'),
                 'subject': self._decode_header(mail, 'Subject'),
-                'attachments': z,
-                'attachments_list': ats,
+                'attachments': ats,
+                'attachments_types': ats_types,
             }
             logger.info('%(subject)s [%(from)s <%(email)s>] %(date)s' % data)
             yield data
@@ -188,24 +194,50 @@ def main():
         try:
             for msg in m.messages():
                 msg.update({
-                    'ats': ', '.join(msg['attachments_list']),
-                    'ats_count': len(msg['attachments_list']),
+                    'ats_keys': ', '.join(msg['attachments'].keys()),
+                    'ats_count': len(msg['attachments']),
+                    'msg_show':
+                    msg['msg'] if len(msg['msg']) else msg['msg_html'],
                 })
 
-                ats = vk.upload_file(
-                    'attachments.zip',
-                    b''.join(list(msg['attachments'])),
-                ) if msg['ats_count'] else None
+                docs = []
+                z = zipstream.ZipFile()
+                for file_name, file_data in msg['attachments'].items():
+                    z.writestr(file_name, file_data)
+
+                try:
+                    doc = vk.upload_file(
+                        'mail2vk_attachments.zip',
+                        b''.join(list(z)),
+                    )
+                    docs.append(doc)
+                    time.sleep(5)
+                except:
+                    logger.exception(
+                        'Can\'t upload file: mail2vk_attachments.zip')
+
+                for file_name, file_data in msg['attachments'].items():
+                    try:
+                        doc = vk.upload_file(
+                            file_name,
+                            file_data,
+                        )
+                        docs.append(doc)
+                        time.sleep(5)
+                    except:
+                        logger.exception('Can\'t upload file: %s' % file_name)
                 res = vk.api.messages.send(
                     message='''From: %(from)s <%(email)s>
 Subject: %(subject)s
 Date: %(date)s
-Attachments (%(ats_count)i): %(ats)s
+Attachments (%(ats_count)i): %(ats_keys)s
 ==============
-%(msg)s''' % msg,
+%(msg_show)s''' % msg,
                     chat_id=vk_reciever,
-                    attachment='doc%(owner_id)i_%(did)i' % ats
-                    if msg['ats_count'] else None,
+                    attachment=','.join([
+                        (lambda doc: 'doc%(owner_id)i_%(did)i' % doc)
+                        for doc in docs
+                    ]) if msg['ats_count'] else None,
                 )
                 mail.seen(msg['id'])
         except Exception as e:
