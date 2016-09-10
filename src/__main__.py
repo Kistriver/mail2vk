@@ -1,4 +1,5 @@
 import vk
+from vk.exceptions import VkAPIError
 import imaplib
 import os
 import email
@@ -224,6 +225,13 @@ def main():
                         )
                         docs.append(doc)
                         time.sleep(5)
+                    except VkAPIError as e:
+                        vk.api.messages.send(message='''
+Can't upload file: %(file_name)s
+Captcha required: %(captcha)s''' % {
+                            'captcha': e.captcha_img,
+                            'file_name': file_name,
+                        }, chat_id=vk_reciever)
                     except:
                         logger.exception('Can\'t upload file: %s' % file_name)
                 res = vk.api.messages.send(
@@ -235,7 +243,7 @@ Attachments (%(ats_count)i): %(ats_keys)s
 %(msg_show)s''' % msg,
                     chat_id=vk_reciever,
                     attachment=','.join([
-                        (lambda doc: 'doc%(owner_id)i_%(did)i' % doc)
+                        'doc%(owner_id)i_%(did)i' % doc
                         for doc in docs
                     ]) if msg['ats_count'] else None,
                 )
