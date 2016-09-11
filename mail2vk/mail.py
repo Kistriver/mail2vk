@@ -32,10 +32,12 @@ class Mail(object):
         self._con = None
 
     def _response(self, res):
+        if not len(res):
+            return
         typ, *ret = res
         if typ != 'OK':
             raise Exception(typ)
-        return tuple(*ret)
+        return tuple(ret)
 
     def _decode_header(self, mail_obj, header):
         header_data = mail_obj.get(header)

@@ -5,9 +5,10 @@ services:
   test:
     build: .
     volumes:
-      - './tests:/home/app/tests'
+      - './tests:/home/app/tests:ro'
+      - './test.sh:/home/app/test.sh:ro'
     env_file: ./dev.env
-    command: python3 -m unittest2 discover -p '*.py' tests
+    command: /bin/bash -c ./test.sh
 
   service:
     build: .

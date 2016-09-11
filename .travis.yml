@@ -18,3 +18,5 @@ install:
   - cp example.env dev.env
 
 script: docker-compose -f docker-compose.dev.yml up --build test
+
+after_success: coveralls
