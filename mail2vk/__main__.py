@@ -1,5 +1,5 @@
 from vk.exceptions import VkAPIError
-import os
+from os import environ as env
 import email
 import logging
 import sys
@@ -12,7 +12,7 @@ from mail2vk.vkontakte import Vk
 __author__ = 'Alexey Kachalov <kachalov@kistriver.com>'
 
 logger = logging.getLogger('mail2vk')
-logger.setLevel(os.environ.get('LOGGER', logging.INFO))
+logger.setLevel(env.get('LOGGER', logging.INFO))
 
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
@@ -27,13 +27,13 @@ Attachments (%(ats_count)i): %(ats_keys)s
 
 
 def main():
-    e_login = os.environ.get('EMAIL_LOGIN', None)
-    e_password = os.environ.get('EMAIL_PASSWORD', None)
+    e_login = env.get('EMAIL_LOGIN', None)
+    e_password = env.get('EMAIL_PASSWORD', None)
 
-    vk_login = os.environ.get('VK_LOGIN', None)
-    vk_password = os.environ.get('VK_PASSWORD', None)
-    vk_reciever = os.environ.get('VK_RECIEVER', None)
-    vk_app_id = os.environ.get('VK_APP_ID', None)
+    vk_login = env.get('VK_LOGIN', None)
+    vk_password = env.get('VK_PASSWORD', None)
+    vk_reciever = env.get('VK_RECIEVER', None)
+    vk_app_id = env.get('VK_APP_ID', None)
 
     mail = Mail(e_login, e_password)
     vk_api = Vk(vk_app_id, vk_login, vk_password)
