@@ -9,7 +9,6 @@ import time
 from mail2vk.mail import Mail
 from mail2vk.vkontakte import Vk
 
-
 __author__ = 'Alexey Kachalov <kachalov@kistriver.com>'
 
 logger = logging.getLogger('mail2vk')
@@ -18,7 +17,6 @@ logger.setLevel(os.environ.get('LOGGER', logging.INFO))
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
-
 
 message_str = '''From: %(from)s <%(email)s>
 Subject: %(subject)s
@@ -55,27 +53,28 @@ def main():
                 for file_name, file_data in msg['attachments'].items():
                     z.writestr(file_name, file_data)
 
-                try:
-                    doc = vk.upload_file(
-                        'mail2vk_attachments.zip',
-                        b''.join(list(z)),
-                    )
-                    docs.append(doc)
-                    time.sleep(5)
-                except:
-                    logger.exception(
-                        'Can\'t upload file: mail2vk_attachments.zip')
+                if len(msg['attachments']):
+                    try:
+                        doc = vk_api.upload_file(
+                            'mail2vk_attachments.zip',
+                            b''.join(list(z)),
+                        )
+                        docs.append(doc)
+                        time.sleep(5)
+                    except:
+                        logger.exception(
+                            'Can\'t upload file: mail2vk_attachments.zip')
 
                 for file_name, file_data in msg['attachments'].items():
                     try:
-                        doc = vk.upload_file(
+                        doc = vk_api.upload_file(
                             file_name,
                             file_data,
                         )
                         docs.append(doc)
                         time.sleep(5)
                     except VkAPIError as e:
-                        vk.api.messages.send(message='''
+                        vk_api.api.messages.send(message='''
 Can't upload file: %(file_name)s
 Captcha required: %(captcha)s''' % {
                             'captcha': e.captcha_img,
@@ -83,7 +82,7 @@ Captcha required: %(captcha)s''' % {
                         }, chat_id=vk_reciever)
                     except:
                         logger.exception('Can\'t upload file: %s' % file_name)
-                res = vk.api.messages.send(
+                res = vk_api.api.messages.send(
                     message=message_str % msg,
                     chat_id=vk_reciever,
                     attachment=','.join([

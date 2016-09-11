@@ -22,18 +22,20 @@ class Mail(object):
 
     def __enter__(self):
         self._con = imaplib.IMAP4_SSL(self._srv, self._port)
-        typ, _ = self._con.login(self._login, self._pwd)
-        if typ != 'OK':
-            raise
-        typ, _ = self._con.select('INBOX')
-        if typ != 'OK':
-            raise
+        self._response(self._con.login(self._login, self._pwd))
+        self._response(self._con.select('INBOX'))
         return self
 
     def __exit__(self, type, value, traceback):
         self._con.close()
         self._con.logout()
         self._con = None
+
+    def _response(self, res):
+        typ, *ret = res
+        if typ != 'OK':
+            raise Exception(typ)
+        return tuple(*ret)
 
     def _decode_header(self, mail_obj, header):
         header_data = mail_obj.get(header)
@@ -46,22 +48,16 @@ class Mail(object):
         if not len(fltrs):
             fltrs += ('(UNSEEN)',)
 
-        typ, unseen = self._con.status('INBOX', '(UNSEEN)')
-        if typ != 'OK':
-            raise
+        unseen = self._response(self._con.status('INBOX', '(UNSEEN)'))
         logger.info('(%s) new messages' %
                     unseen[0].decode('utf-8')[len('INBOX (UNSEEN '):-1])
 
-        typ, data = self._con.uid('SEARCH', None, *fltrs)
-        if typ != 'OK':
-            raise
+        data = self._response(self._con.uid('SEARCH', None, *fltrs))
         for uid in data[0].split():
             yield uid.decode('utf-8')
 
     def fetch(self, uid):
-        typ, message_parts = self._con.uid('FETCH', uid, '(RFC822)')
-        if typ != 'OK':
-            raise
+        message_parts = self._response(self._con.uid('FETCH', uid, '(RFC822)'))
         mail = email.message_from_bytes(message_parts[0][1])
         self.unseen(uid)
 
@@ -107,10 +103,8 @@ class Mail(object):
 
     def _flag(self, mid, flag, yes=None):
         yes = True if yes is None else bool(yes)
-        typ, data = self._con.uid(
-            'STORE', mid, '%sFLAGS' % ('+' if yes else '-'), flag)
-        if typ != 'OK':
-            raise Exception(typ)
+        data = self._response(self._con.uid(
+            'STORE', mid, '%sFLAGS' % ('+' if yes else '-'), flag))
         return data
 
     def seen(self, uid):
