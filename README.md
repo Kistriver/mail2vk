@@ -1,4 +1,4 @@
-# Mail2VK
+# Mail2VK ![build status](https://travis-ci.org/Kistriver/mail2vk.svg?branch=master)
 
 ## Requirements
 * [Docker](https://www.docker.com/products/overview)
