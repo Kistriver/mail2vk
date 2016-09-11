@@ -48,12 +48,11 @@ def main():
                     msg['msg'] if len(msg['msg']) else msg['msg_html'],
                 })
 
-                docs = []
-                z = zipstream.ZipFile()
-                for file_name, file_data in msg['attachments'].items():
-                    z.writestr(file_name, file_data)
-
                 if len(msg['attachments']):
+                    docs = []
+                    z = zipstream.ZipFile()
+                    for file_name, file_data in msg['attachments'].items():
+                        z.writestr(file_name, file_data)
                     try:
                         doc = vk_api.upload_file(
                             'mail2vk_attachments.zip',
