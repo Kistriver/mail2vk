@@ -4,7 +4,7 @@ import email
 import logging
 import sys
 import zipstream
-import time
+from time import sleep
 
 from mail2vk.mail import Mail
 from mail2vk.vkontakte import Vk
@@ -59,7 +59,7 @@ def main():
                             b''.join(list(z)),
                         )
                         docs.append(doc)
-                        time.sleep(5)
+                        sleep(5)
                     except:
                         logger.exception(
                             'Can\'t upload file: mail2vk_attachments.zip')
@@ -71,7 +71,7 @@ def main():
                             file_data,
                         )
                         docs.append(doc)
-                        time.sleep(5)
+                        sleep(5)
                     except VkAPIError as e:
                         vk_api.api.messages.send(message='''
 Can't upload file: %(file_name)s
