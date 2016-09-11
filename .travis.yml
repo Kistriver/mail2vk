@@ -20,4 +20,6 @@ install:
 
 script: docker-compose -f docker-compose.dev.yml up --build test
 
-after_success: coveralls
+after_success:
+  - docker cp mail2vk_test_1:/home/app/coverage.json coverage.json
+  - coveralls --merge=coverage.json

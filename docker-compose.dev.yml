@@ -7,6 +7,7 @@ services:
     volumes:
       - './tests:/home/app/tests:ro'
       - './test.sh:/home/app/test.sh:ro'
+      - './.git:/home/app/.git:ro'
     env_file: ./dev.env
     command: /bin/bash -c ./test.sh
 

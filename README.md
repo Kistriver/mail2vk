@@ -1,4 +1,6 @@
-# Mail2VK [![Build Status](https://travis-ci.org/Kistriver/mail2vk.svg?branch=master)](https://travis-ci.org/Kistriver/mail2vk)
+# Mail2VK
+[![Build Status](https://travis-ci.org/Kistriver/mail2vk.svg?branch=master)](https://travis-ci.org/Kistriver/mail2vk)
+[![Coverage Status](https://coveralls.io/repos/github/Kistriver/mail2vk/badge.svg?branch=master)](https://coveralls.io/github/Kistriver/mail2vk?branch=master)
 
 ## Requirements
 * [Docker](https://www.docker.com/products/overview)
