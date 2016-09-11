@@ -1,0 +1,14 @@
+version: '2'
+
+
+services:
+  test:
+    build: .
+    volumes:
+      - './tests:/home/app/tests'
+    env_file: ./dev.env
+    command: python3 -m unittest2 discover -p '*.py' tests
+
+  service:
+    build: .
+    env_file: ./dev.env

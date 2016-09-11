@@ -4,5 +4,4 @@ version: '2'
 services:
   service:
     build: .
-#    restart: always
     env_file: ./prod.env
