@@ -81,6 +81,8 @@ class Mail(object):
                     ats.setdefault(part.get_filename(), [])
                     ats[part.get_filename()].append(part.get_payload(
                         decode=True))
+        else:
+            msg.append(mail.get_payload(decode=True))
 
         msg, msg_html = map(
             lambda x: b''.join(x).decode('utf-8'),

@@ -90,6 +90,30 @@ class MailCase(unittest2.TestCase):
             self.mail._con.uid.call_args,
             (('STORE', '1', '-FLAGS', '\\SEEN'),))
 
+    @patch('email.message_from_bytes')
+    def test_fetch_not_multipart(self, message_from_bytes_mock):
+        mail_mock = Mock()
+        mail_mock.is_multipart.return_value = False
+        mail_mock.get_payload.return_value = b'data'
+        message_from_bytes_mock.return_value = mail_mock
+        self.mail._response = Mock()
+        self.mail._decode_header = Mock()
+        self.mail._con = Mock()
+        self.mail._con.uid.return_value = None
+        self.mail._response.return_value = \
+            [(b'1 (UID 1 RFC8222 {4})', b'data', b' FLAGS (\\SEEN)')]
+        self.mail._decode_header.side_effect = lambda self_mock, x: x
+        self.assertDictEqual(
+            self.mail.fetch('1'),
+            {
+                'date': 'Date', 'attachments_types': {},
+                'attachments': {}, 'msg_html': '',
+                'subject': 'Subject', 'from': 'From',
+                'email': 'Envelope-From', 'msg': 'data',
+                'uid': '1',
+            }
+        )
+
 
 if __name__ == '__main__':
     unittest2.main()
