@@ -80,7 +80,7 @@ class MailCase(unittest2.TestCase):
         self.mail.seen('1')
         self.assertTupleEqual(
             self.mail._con.uid.call_args,
-            ('STORE', '1', '+FLAGS', '\\SEEN'))
+            (('STORE', '1', '+FLAGS', '\\SEEN'),))
 
     def test_unseen(self):
         self.mail._con = Mock()
@@ -88,7 +88,7 @@ class MailCase(unittest2.TestCase):
         self.mail.unseen('1')
         self.assertTupleEqual(
             self.mail._con.uid.call_args,
-            ('STORE', '1', '-FLAGS', '\\SEEN'))
+            (('STORE', '1', '-FLAGS', '\\SEEN'),))
 
 
 if __name__ == '__main__':
