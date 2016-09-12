@@ -74,6 +74,22 @@ class MailCase(unittest2.TestCase):
         self.mail._con.uid.return_value = 'OK', [b'1 2 3']
         self.assertTupleEqual(tuple(self.mail.messages()), ('1', '2', '3'))
 
+    def test_seen(self):
+        self.mail._con = Mock()
+        self.mail._con.uid.return_value = 'OK', []
+        self.mail.seen('1')
+        self.assertTupleEqual(
+            self.mail._con.uid.call_args,
+            ('STORE', '1', '+FLAGS', '\\SEEN'))
+
+    def test_unseen(self):
+        self.mail._con = Mock()
+        self.mail._con.uid.return_value = 'OK', []
+        self.mail.unseen('1')
+        self.assertTupleEqual(
+            self.mail._con.uid.call_args,
+            ('STORE', '1', '-FLAGS', '\\SEEN'))
+
 
 if __name__ == '__main__':
     unittest2.main()
