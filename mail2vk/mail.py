@@ -37,6 +37,8 @@ class Mail(object):
         typ, *ret = res
         if typ != 'OK':
             raise Exception(typ)
+        if len(ret) == 1:
+            return ret[0]
         return tuple(ret)
 
     def _decode_header(self, mail_obj, header):
