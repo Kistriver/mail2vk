@@ -8,16 +8,25 @@ logger = logging.getLogger('mail2vk')
 
 
 class Vk(object):
+    _msg_default = '''From: %(from)s <%(email)s>
+Subject: %(subject)s
+Date: %(date)s
+Attachments (%(ats_count)i): %(ats_keys)s
+==============
+%(msg_show)s'''
     _app_id = None
     _login = None
     _pwd = None
+    _msg = None
     _session = None
     _api = None
 
-    def __init__(self, app_id, login, password):
-        self._app_id = app_id
-        self._login = login
-        self._pwd = password
+    def __init__(self, config):
+        self._app_id = config['app_id']
+        self._login = config['login']
+        self._pwd = config['password']
+        self._msg = self._msg_default \
+            if config.get('msg_format', None) is None else config['msg_format']
 
     def __enter__(self):
         self._session = vk.AuthSession(
@@ -55,3 +64,6 @@ class Vk(object):
         file_cred = res_json['file']
         ats = self.api.docs.save(file=file_cred, title=file_name)[0]
         return ats
+
+    def msg(self, **params):
+        return self._msg % params

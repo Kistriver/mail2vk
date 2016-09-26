@@ -18,13 +18,6 @@ ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.DEBUG)
 logger.addHandler(ch)
 
-message_str = '''From: %(from)s <%(email)s>
-Subject: %(subject)s
-Date: %(date)s
-Attachments (%(ats_count)i): %(ats_keys)s
-==============
-%(msg_show)s'''
-
 
 def main():
     e_login = env.get('EMAIL_LOGIN', None)
@@ -36,7 +29,11 @@ def main():
     vk_app_id = env.get('VK_APP_ID', None)
 
     mail = Mail(e_login, e_password)
-    vk_api = Vk(vk_app_id, vk_login, vk_password)
+    vk_api = Vk({
+        "app_id": vk_app_id,
+        "login": vk_login,
+        "password": vk_password
+    })
     with mail as mail, vk_api as vk_api:
         try:
             for uid in mail.messages():
@@ -82,7 +79,7 @@ Captcha required: %(captcha)s''' % {
                     except:
                         logger.exception('Can\'t upload file: %s' % file_name)
                 res = vk_api.api.messages.send(
-                    message=message_str % msg,
+                    message=vk_api.msg(**msg),
                     chat_id=vk_reciever,
                     attachment=','.join([
                         'doc%(owner_id)i_%(did)i' % doc
