@@ -67,27 +67,32 @@ class Mail(object):
 
         msg = []
         msg_html = []
+        charset_msg = 'utf-8'
+        charset_msg_html = 'utf-8'
         ats = {}
         ats_types = {}
         if mail.is_multipart():
             for part in mail.walk():
                 ctype = part.get_content_type()
                 if ctype == 'text/plain':
+                    charset_msg = part.get_content_charset()
                     msg.append(part.get_payload(decode=True))
                 elif ctype == 'text/html':
+                    charset_msg_html = part.get_content_charset()
                     msg_html.append(part.get_payload(decode=True))
                 elif part.get_filename() is not None:
-                    ats_types[part.get_filename()] = ctype
-                    ats.setdefault(part.get_filename(), [])
-                    ats[part.get_filename()].append(part.get_payload(
+                    fn_h = email.header.decode_header(part.get_filename())
+                    file_name = fn_h[0][0].decode(fn_h[0][1]) if \
+                        fn_h[0][1] else fn_h[0][0]
+                    ats_types[file_name] = ctype
+                    ats.setdefault(file_name, [])
+                    ats[file_name].append(part.get_payload(
                         decode=True))
         else:
             msg.append(mail.get_payload(decode=True))
 
-        msg, msg_html = map(
-            lambda x: b''.join(x).decode('utf-8'),
-            [msg, msg_html]
-        )
+        msg = b''.join(msg).decode(charset_msg)
+        msg_html = b''.join(msg_html).decode(charset_msg_html)
 
         for file_name, data in ats.items():
             ats[file_name] = b''.join(data)
